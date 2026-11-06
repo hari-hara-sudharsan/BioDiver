@@ -161,6 +161,7 @@ select,input[type=search]{font:400 1.06rem/1.2 "EB Garamond",Georgia,serif;color
 @keyframes slide{to{opacity:1;transform:none}}
 .glist span{font-size:var(--small);font-weight:500;text-align:right}
 .glist .good{color:#176146}.glist .warn{color:#7e5306}.glist .risk{color:var(--loss-ink)}
+.near{margin-top:14px;font-size:1rem;padding:12px 14px}
 .note{font-size:var(--small);color:var(--ink-2);margin-top:14px;line-height:1.4}
 .swatches{display:flex;gap:3px;align-items:center;font-size:var(--small)}
 .swatches i{width:22px;height:12px;display:block}
@@ -579,8 +580,10 @@ function guide(){
   const key=`${picked[0]},${picked[1]}`,list=(D.guide[key]||[]).slice().sort((a,b)=>(b[2]+b[1])-(a[2]+a[1]));
   const items=list.map(([i,a,c],n)=>{const k=c?["good",t.stay]:a?["warn",t.mixed]:["risk",t.risk];
     return `<li style="--i:${n}"><i>${esc(D.guide_species[i])}</i><span class="${k[0]}">${k[1]}</span></li>`}).join("");
-  g.innerHTML=`<h3>${t.title.replace("{c}",`${picked[0]-.25}°N, ${picked[1]+.25}°E`)}</h3>`+(list.length?`<ul class="glist">${items}</ul>`:`<p>${t.none}</p>`)+`<p class="note">${t.note}</p>`+(t.draft?`<p class="note">${t.draft}</p>`:"");
+  g.innerHTML=`<h3>${t.title.replace("{c}",`${picked[0]-.25}°N, ${picked[1]+.25}°E`)}</h3>`+(list.length?`<ul class="glist">${items}</ul>`:`<p>${t.none}</p><button type="button" class="btn near" id="near">${NEAR[$("lang").value]}</button>`)+`<p class="note">${t.note}</p>`+(t.draft?`<p class="note">${t.draft}</p>`:"");
 }
+const NEAR={en:"Show the nearest block with plants",hi:"पौधों वाला निकटतम खंड दिखाएँ",ta:"தாவரங்கள் உள்ள அருகிலுள்ள பகுதியைக் காட்டு"};
+function nearestWithPlants(from){let best=null,bd=1e9;for(const b of D.blocks){if(!(D.guide[`${b[0]},${b[1]}`]||[]).length)continue;const d=(b[0]-from[0])**2+(b[1]-from[1])**2;if(d<bd){bd=d;best=b}}return best}
 function nearest(lat,lon){let best=null,bd=1e9;for(const b of D.blocks){const d=(b[0]-.25-lat)**2+(b[1]+.25-lon)**2;if(d<bd){bd=d;best=b}}return best}
 function initMap(){
   map=L.map("map",{preferCanvas:true,scrollWheelZoom:false,minZoom:3,maxZoom:9}).fitBounds([[5,60],[38,100]]);
@@ -629,8 +632,9 @@ function scroller(){
   addEventListener("resize",run);run();
 }
 
-fetch("data/app.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{
+fetch("data/app.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{
   D=d;
+  D.guide=Object.fromEntries(Object.entries(D.guide).map(([k,v])=>[k.split(",").map(Number).join(","),v]));
   document.querySelector("#name").innerHTML=[..."BioDiver"].map((c,i)=>`<span style="--i:${i}">${c}</span>`).join("");
   facts();barcode();steps();formulas();heads();table();evidence();guide();
   new Mosaic($("heroMap"),D.blocks,{intro:true,pointerHost:$("heroMap").parentElement});
@@ -640,6 +644,7 @@ fetch("data/app.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json
   $("layers").onclick=e=>{const b=e.target.closest("button");if(!b)return;layer=b.dataset.l;setPressed($("layers"),b);const m=$("map");m.classList.add("swap");setTimeout(()=>{drawLayer();m.classList.remove("swap")},still?0:260)};
   $("jumps").onclick=e=>{const b=e.target.closest("button");if(!b)return;setPressed($("jumps"),b);const [la,lo]=b.dataset.p.split(",").map(Number),k=nearest(la,lo);select(k);still?map.setView([la,lo],6):map.flyTo([la,lo],6,{duration:1.4})};
   $("lang").onchange=guide;
+  $("guide").onclick=e=>{if(e.target.id!=="near")return;const k=nearestWithPlants(picked);if(!k)return;select(k);const c=[k[0]-.25,k[1]+.25];still?map.panTo(c):map.flyTo(c,Math.max(map.getZoom(),6),{duration:1.2})};
   ["q","grade","prio"].forEach(i=>$(i).oninput=table);
   $("heads").onclick=e=>{const b=e.target.closest("button");if(!b)return;const k=b.dataset.k;if(k===sortKey)sortDir=-sortDir;else{sortKey=k;sortDir=COLS.find(c=>c[0]===k)[2]?-1:1}heads();table()};
   observe();scroller();
