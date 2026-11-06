@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.zip
+
+# Downloaded and cached data; rebuild with run_all.sh
+data/raw/
+data/cache/
+
+# WorldClim terms do not allow redistribution
+data/processed/*.tif
+
+# Fine-resolution suitability for every species, including threatened ones.
+# Never publish these: public layers stop at 0.5 degrees.
+data/processed/species_maps/
+data/processed/effort.npy
+
+# Large derived tables and preview runs
+data/processed/compounds.parquet
+outputs/*_sample.csv
+.taste-skill/

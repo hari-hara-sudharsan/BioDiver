@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BioDiver</title>
+<meta name="description" content="A climate stress test for South Asian medicinal plants and the traditional formulas that depend on them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script>document.documentElement.classList.add("js")</script>
+<style>
+:root{
+  --ground:#0c2420;--ground-2:#143229;--paper:#eef0e6;--paper-2:#dfe5d6;--paper-3:#cfdcc9;
+  --ink:#14241f;--ink-2:#3d4f47;--pale:#e6ecdf;--pale-2:#b4c6b8;--accent:#e3a72f;--accent-ink:#14241f;--loss:#e2553a;--loss-ink:#b5361f;
+  --m:12px;--gap:12px;--bar:60px;
+  --small:clamp(.875rem,.84rem + .12vw,.95rem);--body:clamp(1.125rem,1.06rem + .3vw,1.3rem);--lead:clamp(1.3rem,1.1rem + .8vw,1.75rem);
+  --head:clamp(2.3rem,1.5rem + 3.4vw,4.6rem);--huge:clamp(4rem,2rem + 9vw,10rem);
+  --ease:cubic-bezier(.2,.75,.15,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--bar) + 8px);background:var(--ground)}
+body{margin:0;background:var(--ground);color:var(--pale);font:400 var(--body)/1.5 "EB Garamond",Georgia,"Noto Serif","Noto Sans Tamil","Noto Sans Devanagari",serif;-webkit-font-smoothing:antialiased;overflow-x:clip}
+h1,h2,h3,p,ul,ol{margin:0}
+h1,h2{font-weight:400;letter-spacing:-.015em;line-height:1.04}
+h2{font-size:var(--head)}
+h3{font-weight:500;font-size:var(--lead);line-height:1.2}
+ul{padding:0;list-style:none}
+a{color:inherit}
+em{font-style:italic}
+img{display:block;max-width:100%;height:auto}
+canvas{display:block}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.skip{position:absolute;left:-999px;top:0;background:var(--accent);color:var(--accent-ink);padding:10px 14px;z-index:3000}
+.skip:focus{left:12px;top:12px}
+
+/* bar */
+.bar{position:sticky;top:0;z-index:2000;height:var(--bar);display:flex;align-items:center;gap:28px;padding:0 24px;background:var(--ground);transition:transform .45s var(--ease)}
+.bar.away{transform:translateY(-100%)}
+.mark{font-style:italic;font-size:1.5rem;text-decoration:none;margin-right:auto}
+.bar nav{display:flex;gap:24px}
+.bar nav a{position:relative;text-decoration:none;font-size:1.05rem;padding:6px 0}
+.bar nav a::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:2px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease)}
+.bar nav a:hover::after,.bar nav a[aria-current]::after{transform:scaleX(1)}
+.btn{display:inline-block;border:0;background:var(--accent);color:var(--accent-ink);font:500 1.1rem/1 "EB Garamond",Georgia,serif;padding:15px 22px;text-decoration:none;cursor:pointer;transition:transform .25s var(--ease),background .25s}
+.btn:hover{transform:translateY(-2px);background:#f0b93f}
+.btn:active{transform:translateY(1px) scale(.98)}
+@media (max-width:860px){.bar nav{display:none}.bar{padding:0 16px}}
+
+/* hero: the herbarium sheet beside the living map */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:var(--gap);padding:0 var(--m) var(--m);min-height:calc(100svh - var(--bar) - 38px)}
+.sheet{position:relative;display:flex;flex-direction:column;background:var(--paper);color:var(--ink);overflow:hidden}
+.barcode{display:flex;align-items:flex-end;height:60px;background:var(--ground-2);flex:none}
+.barcode i{flex:1;background:var(--accent);transform-origin:bottom;transition:transform 1.1s var(--ease)}
+.sheet-body{position:relative;flex:1;display:flex;flex-direction:column;padding:clamp(24px,3.4vw,52px)}
+.sheet h1{font-size:clamp(2.3rem,1.3rem + 3.5vw,5rem);position:relative;z-index:1}
+.sheet .say{margin-top:24px;max-width:31ch;font-size:var(--lead);line-height:1.3;position:relative;z-index:1}
+.sheet .btn{margin-top:30px;align-self:flex-start;position:relative;z-index:1}
+.plate-hero{position:absolute;right:-9%;bottom:-5%;width:47%;pointer-events:none}
+.label{margin-top:auto;padding-top:34px;position:relative;z-index:1;max-width:58%;font-size:var(--small);line-height:1.4;color:var(--ink-2)}
+.label b{font-weight:500;color:var(--ink)}
+.field{position:relative;background:var(--ground-2);min-height:420px;overflow:hidden}
+.field canvas{position:absolute;inset:0;width:100%;height:100%}
+.field figcaption{position:absolute;left:18px;bottom:14px;font-size:var(--small);color:var(--pale);pointer-events:none}
+figure{margin:0}
+@media (max-width:860px){.hero{grid-template-columns:1fr;min-height:0}.field{order:-1;height:52svh;min-height:320px}.sheet{margin-top:-36px;margin-inline:8px}.plate-hero{width:46%}.label{max-width:60%}}
+
+/* facts strip */
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gap);padding:clamp(70px,9vw,130px) 24px}
+.fact b{display:block;font-weight:400;font-size:clamp(2.8rem,1.6rem + 3.6vw,5.4rem);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--accent)}
+.fact span{display:block;margin-top:10px;max-width:24ch}
+@media (max-width:860px){.facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:34px 16px;padding-inline:16px}}
+
+/* the drain */
+.drain{position:relative;height:420vh;background:var(--ground)}
+.stage{position:sticky;top:0;height:100svh;overflow:hidden;background:var(--ground)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.tell{position:absolute;z-index:3;left:24px;top:calc(var(--bar) + 18px);bottom:28px;width:min(40vw,520px);display:flex;flex-direction:column;justify-content:space-between}
+.tell h2{max-width:11ch}
+.steps{position:relative;min-height:15em}
+.step{position:absolute;inset:auto 0 0 0;opacity:0;transform:translateY(26px);transition:opacity .3s ease,transform .45s var(--ease)}
+.step.on{opacity:1;transform:none}
+.step strong{display:block;font-weight:400;font-size:var(--huge);line-height:.95;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.step p{max-width:32ch;margin-top:10px}
+.step h3{margin-bottom:4px;color:var(--accent)}
+.ticks{position:absolute;right:24px;bottom:28px;display:flex;gap:8px}
+.ticks i{width:44px;height:6px;background:var(--ground-2);overflow:hidden;display:block}
+.ticks i b{display:block;height:100%;background:var(--accent);transform:scaleX(0);transform-origin:left}
+html:not(.js) .drain,.still .drain{height:auto}
+html:not(.js) .stage,.still .stage{position:relative;height:auto;min-height:100svh}
+html:not(.js) .steps,.still .steps{min-height:0}
+html:not(.js) .step,.still .step{position:static;opacity:1;transform:none;margin-top:26px}
+html:not(.js) .tell,.still .tell{position:relative;left:auto;top:auto;bottom:auto;width:auto;padding:90px 24px 40px;max-width:560px;z-index:1;display:block}
+@media (max-width:860px){
+  .tell{left:16px;right:16px;width:auto;top:calc(var(--bar) + 6px);bottom:22px}
+  .tell h2{max-width:none}
+  .step strong{font-size:clamp(3.4rem,17vw,5rem)}
+  .step p{font-size:1.06rem}
+  .step{background:var(--ground);padding:10px 12px 12px;margin-inline:-4px}
+  .ticks{right:16px;bottom:auto;top:calc(var(--bar) + 8px);display:none}
+}
+
+/* formula sheets */
+.stress{padding:clamp(90px,12vw,180px) var(--m) 60px;background:var(--ground)}
+.intro{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px;padding:0 12px 70px;align-items:end}
+.intro p{max-width:46ch}
+
+.stack{display:grid;gap:40px}
+.card{--tab:82px;position:sticky;top:calc(var(--bar) + 10px + var(--n)*var(--tab));min-height:calc(100svh - var(--bar) - 28px - 2*var(--tab));color:var(--ink);display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);overflow:hidden}
+.card-l>*:not(h3):not(.plates),.card-r,.plates{opacity:calc(1 - var(--k,0)*.85)}
+.card:nth-child(1){background:var(--paper)}.card:nth-child(2){background:var(--paper-2)}.card:nth-child(3){background:var(--paper-3)}
+.card-l{position:relative;padding:16px clamp(22px,3vw,44px) 26px;display:flex;flex-direction:column;min-height:440px}
+.card-l h3{font-size:clamp(2.3rem,1.5rem + 2.4vw,3.6rem);height:54px;font-weight:400;letter-spacing:-.015em;line-height:1.05}
+.card-l .big{margin-top:14px;font-size:clamp(3.4rem,2rem + 5vw,7rem);line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.card-l .big.none{font-size:var(--lead);line-height:1.3;letter-spacing:0;max-width:30ch}
+.card-l p{max-width:min(34ch,60%);margin-top:8px}
+.foot{margin-top:18px;display:grid;grid-template-columns:repeat(20,1fr);gap:3px;width:58%;max-width:340px}
+.foot i{aspect-ratio:1;background:var(--ink);transition:background .4s,transform .5s var(--ease)}
+.foot i.lost{background:var(--loss);transform:scale(.45)}
+.foot-key{font-size:var(--small);margin-top:8px;color:var(--ink-2)}
+.plates{position:absolute;right:0;bottom:0;display:flex;align-items:flex-end;gap:0;width:38%;pointer-events:none}
+.plates:has(img:nth-child(2)){width:66%}
+.plates img{mix-blend-mode:multiply;width:100%;min-width:0}
+.card-r{padding:clamp(22px,3vw,44px);display:flex;flex-direction:column;justify-content:center}
+.ing{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 14px;padding:9px 0;align-items:baseline;transition:transform .3s var(--ease)}
+.ing+.ing{margin-top:2px}
+.ing:hover{transform:translateX(6px)}
+.ing i{font-size:1.15em}
+.ing small{grid-column:1/-1;font-size:var(--small);color:var(--ink-2)}
+.meter{grid-column:1/-1;height:7px;background:rgba(20,36,31,.13);position:relative;overflow:hidden}
+.meter u{position:absolute;inset:0 auto 0 0;background:var(--loss-ink);text-decoration:none;width:100%;transform:scaleX(0);transform-origin:left;transition:transform 1.1s var(--ease)}
+.in .meter u{transform:scaleX(var(--v))}
+.grade{font-size:var(--small);font-weight:500;white-space:nowrap}
+.grade.standard{color:#176146}.grade.low{color:#7e5306}.grade.no_skill,.grade.data_gap{color:var(--loss-ink)}
+.many{columns:2;column-gap:32px}.many .ing{break-inside:avoid}
+@media (max-width:900px),(max-height:680px){.card{position:relative;top:auto;min-height:0}}
+@media (max-width:860px){.card{grid-template-columns:1fr}.intro{grid-template-columns:1fr;padding-inline:4px;gap:16px}.intro p{max-width:none}.fact span{max-width:none}.plates,.plates:has(img:nth-child(2)){position:relative;width:70%;margin:18px 0 -22px auto}.card-l p{max-width:none}.foot{width:100%}.card-l{min-height:0}.many{columns:1}}
+
+/* explorer */
+.explore{background:var(--ground-2);padding:clamp(80px,10vw,150px) var(--m) var(--m)}
+.explore .intro{padding-bottom:36px}
+.tools{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;padding:0 12px 14px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:400 1.06rem/1 "EB Garamond",Georgia,serif;color:var(--pale);background:var(--ground);border:0;padding:12px 14px;cursor:pointer;transition:background .25s,color .25s,transform .25s var(--ease)}
+.seg button:hover{transform:translateY(-2px)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.tools label{display:flex;gap:8px;align-items:center}
+select,input[type=search]{font:400 1.06rem/1.2 "EB Garamond",Georgia,serif;color:var(--ink);background:var(--paper);border:0;padding:11px 12px;max-width:100%}
+.mapgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:var(--gap)}
+#map{height:min(76svh,740px);min-height:420px;background:var(--ground);transition:opacity .3s}
+#map .leaflet-tile-pane{filter:grayscale(1) invert(1) brightness(.82) contrast(.9) sepia(.35) hue-rotate(95deg)}
+#map .leaflet-overlay-pane{transition:opacity .28s}
+#map.swap .leaflet-overlay-pane{opacity:0}
+.leaflet-container{font:inherit;background:var(--ground)}
+.leaflet-control-attribution{font-size:13px}
+#guide{background:var(--paper);color:var(--ink);padding:24px;max-height:min(76svh,740px);overflow:auto}
+#guide h3{margin-bottom:6px}
+.glist{margin-top:10px}
+.glist li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;opacity:0;transform:translateX(14px);animation:slide .45s var(--ease) forwards;animation-delay:calc(var(--i)*32ms)}
+@keyframes slide{to{opacity:1;transform:none}}
+.glist span{font-size:var(--small);font-weight:500;text-align:right}
+.glist .good{color:#176146}.glist .warn{color:#7e5306}.glist .risk{color:var(--loss-ink)}
+.note{font-size:var(--small);color:var(--ink-2);margin-top:14px;line-height:1.4}
+.swatches{display:flex;gap:3px;align-items:center;font-size:var(--small)}
+.swatches i{width:22px;height:12px;display:block}
+.swatches span{margin:0 6px}
+@media (max-width:860px){.mapgrid{grid-template-columns:1fr}#map{height:60svh}#guide{max-height:none}}
+
+/* ledger */
+.ledger{background:var(--paper);color:var(--ink);padding:clamp(80px,10vw,150px) 24px}
+.ledger .intro{padding-inline:0;padding-bottom:30px}
+.ledger .tools{padding-inline:0}
+.ledger select,.ledger input[type=search]{background:var(--paper-2)}
+.tablewrap{overflow:auto;max-height:76svh;background:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:1.04rem}
+th{position:sticky;top:0;background:var(--paper-2);font-weight:500;z-index:1;padding:0;text-align:left}
+th button{all:unset;display:block;width:100%;box-sizing:border-box;padding:10px 12px;cursor:pointer;white-space:nowrap}
+th button:focus-visible{outline:3px solid var(--loss-ink);outline-offset:-3px}
+th[aria-sort=ascending] button::after{content:" ↑"}th[aria-sort=descending] button::after{content:" ↓"}
+td{padding:8px 12px;border-bottom:1px solid var(--paper-2);white-space:nowrap}
+tbody tr{transition:background .2s}
+tbody tr:hover{background:var(--paper-2)}
+td.num,th.num,th.num button{text-align:right;font-variant-numeric:tabular-nums}
+.bar-in{display:inline-block;vertical-align:middle;width:70px;height:7px;background:var(--paper-2);margin-left:8px;position:relative}
+.bar-in u{position:absolute;inset:0 auto 0 0;background:var(--loss-ink);text-decoration:none}
+.withheld{font-size:var(--small);color:var(--ink-2)}
+.gaps{margin-top:26px;max-width:72ch}
+
+/* evidence */
+.evidence{padding:clamp(90px,11vw,170px) 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:48px}
+.tests li{padding:18px 0}
+.tests b{display:block;font-weight:400;font-size:clamp(2.6rem,1.8rem + 2.6vw,4.2rem);line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.tests span{display:block;margin-top:6px;max-width:44ch}
+.board{margin-top:26px;background:var(--ground-2);overflow:auto}
+.board table{color:var(--pale)}
+.board th{background:var(--ground-2);position:static}.board th,.board td{padding:9px 12px;border:0}
+.board th{font-weight:500}.board tr.best td{color:var(--accent)}
+.side p{margin-top:12px;max-width:52ch}
+@media (max-width:860px){.evidence{grid-template-columns:1fr;padding-inline:16px}.ledger{padding-inline:16px}}
+
+/* limits */
+.limits{background:var(--paper-2);color:var(--ink);display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr)}
+.limits figure{position:relative;background:#d7cda6;min-height:340px;overflow:hidden}
+.limits figure img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:78% 50%;will-change:transform}
+.limits figcaption{position:absolute;left:14px;bottom:12px;background:var(--paper);padding:5px 9px;font-size:var(--small)}
+.letter{padding:clamp(48px,7vw,110px) clamp(22px,5vw,80px)}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:34px 44px;margin-top:38px}
+.cols li{margin-top:8px;line-height:1.38}
+@media (max-width:860px){.limits{grid-template-columns:1fr}.cols{grid-template-columns:1fr}}
+
+/* close */
+.close{padding:80px 24px 26px;overflow:hidden}
+.close .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px;font-size:1.04rem}
+.close .row p+p{margin-top:10px}
+.close a{text-underline-offset:3px}
+.name{font-style:italic;font-size:clamp(5rem,23.5vw,27rem);line-height:.9;letter-spacing:-.03em;margin-top:48px;color:var(--pale);white-space:nowrap}
+.name span{display:inline-block;transform:translateY(105%);transition:transform 1s var(--ease);transition-delay:calc(var(--i)*45ms)}
+.in .name span,.name.in span,html:not(.js) .name span{transform:none}
+.namewrap{overflow:hidden}
+@media (max-width:860px){.close .row{grid-template-columns:1fr}}
+
+/* preview strip */
+.preview{background:var(--accent);color:var(--accent-ink);padding:8px 24px;font-size:1.02rem;line-height:1.3}
+.preview[hidden]{display:none}
+
+/* entrances: hidden only when scripts run */
+.js [data-r]{opacity:0;transform:translateY(26px);transition:opacity .85s var(--ease),transform .85s var(--ease);transition-delay:calc(var(--d,0)*80ms)}
+.js [data-r].in{opacity:1;transform:none}
+.js [data-wipe]{clip-path:inset(0 0 100% 0);transition:clip-path 1.3s var(--ease)}
+.js [data-wipe].in{clip-path:inset(0 0 0 0)}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important;transition-delay:0ms!important}
+  .js [data-r]{opacity:1;transform:none}.js [data-wipe]{clip-path:none}
+  .card{position:relative;top:auto;min-height:0}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="preview" id="preview" hidden>Preview data: the full species run is still in progress, so these figures cover the priority plants only and will change.</div>
+<header class="bar" id="bar">
+  <a class="mark" href="#top">BioDiver</a>
+  <nav aria-label="Sections">
+    <a href="#drain">The drain</a><a href="#stress">Formulas</a><a href="#map-section">Map</a><a href="#species">Species</a><a href="#evidence">Evidence</a><a href="#limits">Limits</a>
+  </nav>
+  <a class="btn" href="#map-section">Open the map</a>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <div class="sheet">
+    <div class="barcode" id="barcode" aria-hidden="true"></div>
+    <div class="sheet-body">
+      <h1>Medicinal plants, stress-tested</h1>
+      <p class="say">Where South Asia's climate may still suit the plants behind traditional formulas in 2041–2060.</p>
+      <a class="btn" href="#drain">See what the climate takes</a>
+      <p class="label"><b>Research prototype.</b> Model projections, not forecasts, medical advice or Red List assessments. Nothing here says a plant is safe, or that one plant can replace another.</p>
+      <img class="plate-hero" src="assets/phyllanthus-ink.png" width="900" height="1225" alt="Engraved botanical plate of Phyllanthus emblica, the amalaki tree, with its feathery leaves and round fruit" fetchpriority="high">
+    </div>
+  </div>
+  <figure class="field">
+    <canvas id="heroMap" role="img" aria-label="South Asia drawn as a mosaic of half-degree blocks, brighter where more modelled medicinal plants find suitable climate today"></canvas>
+    <figcaption>Each square is a 0.5° block. Brighter means more modelled plants.</figcaption>
+  </figure>
+</section>
+
+<section class="facts" aria-label="Key figures" id="facts"></section>
+
+<section class="drain" id="drain">
+  <div class="stage">
+    <canvas id="drainMap" role="img" aria-label="The same mosaic of South Asia, with blocks shrinking and turning red as suitable climate is lost by 2041–2060"></canvas>
+    <div class="tell">
+      <h2>What the climate takes</h2>
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="ticks" aria-hidden="true"><i><b></b></i><i><b></b></i><i><b></b></i></div>
+  </div>
+</section>
+
+<section class="stress" id="stress">
+  <div class="intro">
+    <h2 data-r>A formula is only as safe as its ingredients</h2>
+    <p data-r style="--d:1">A formula needs every plant in it. The sourcing footprint is the area where all of them find suitable climate together, so it can shrink faster than any single range. It measures climate suitability, not actual supply.</p>
+  </div>
+  <div class="stack" id="formulas"></div>
+</section>
+
+<section class="explore" id="map-section">
+  <div class="intro">
+    <h2 data-r>Find what can hold where you are</h2>
+    <p data-r style="--d:1">Select any block to see its priority plants. "Retained" means at least 4 of 5 climate models keep the block suitable. Threatened plants are left out of this map entirely, to avoid helping illegal collection.</p>
+  </div>
+  <div class="tools">
+    <div class="seg" id="layers" role="group" aria-label="Map layer">
+      <button type="button" data-l="now" aria-pressed="true">Today</button>
+      <button type="button" data-l="k245" aria-pressed="false">Retained, SSP2-4.5</button>
+      <button type="button" data-l="k585" aria-pressed="false">Retained, SSP5-8.5</button>
+      <button type="button" data-l="share" aria-pressed="false">Share kept, SSP5-8.5</button>
+    </div>
+    <div class="swatches" id="legend" aria-hidden="true"></div>
+  </div>
+  <div class="tools">
+    <div class="seg" id="jumps" role="group" aria-label="Jump to a region">
+      <button type="button" data-p="11,76.5" aria-pressed="false">Western Ghats</button>
+      <button type="button" data-p="22.5,79" aria-pressed="false">Central India</button>
+      <button type="button" data-p="30.5,79" aria-pressed="false">Western Himalaya</button>
+      <button type="button" data-p="26,92" aria-pressed="false">Assam</button>
+      <button type="button" data-p="7.5,80.5" aria-pressed="false">Sri Lanka</button>
+    </div>
+    <label>Language <select id="lang"><option value="en">English</option><option value="hi">हिन्दी</option><option value="ta">தமிழ்</option></select></label>
+  </div>
+  <div class="mapgrid" data-ui>
+    <div id="map" role="application" aria-label="Interactive map of modelled medicinal plant richness. Use the region buttons above to select a block with the keyboard."></div>
+    <aside id="guide" aria-live="polite"></aside>
+  </div>
+</section>
+
+<section class="ledger" id="species">
+  <div class="intro">
+    <h2 data-r>Every plant, and how far to trust it</h2>
+    <p data-r style="--d:1">Loss is the share of today's modelled suitable area not retained under SSP5-8.5. A low value does not mean a plant is safe: models cannot see harvesting, habitat loss or heat limits beyond sampled conditions.</p>
+  </div>
+  <div class="tools" data-ui>
+    <input type="search" id="q" placeholder="Search species or family" aria-label="Search species or family">
+    <label>Grade <select id="grade"><option value="">All</option><option value="standard">Standard</option><option value="low">Low</option><option value="no_skill">No skill</option><option value="data_gap">Data gap</option></select></label>
+    <label><input type="checkbox" id="prio" checked> Priority only</label>
+    <span id="count" role="status"></span>
+  </div>
+  <div class="tablewrap" data-ui tabindex="0" aria-label="Species table">
+    <table>
+      <thead><tr id="heads"></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="gaps" id="gaps"></p>
+</section>
+
+<section class="evidence" id="evidence">
+  <div>
+    <h2 data-r>We tried to prove ourselves wrong</h2>
+    <ul class="tests" id="tests"></ul>
+  </div>
+  <div class="side">
+    <h3 data-r>Which unassessed plants should experts review first?</h3>
+    <div id="triage"></div>
+  </div>
+</section>
+
+<section class="limits" id="limits">
+  <figure>
+    <img src="assets/indian-medicinal-plants-plate-602-vol-4.jpg" width="1280" height="1022" alt="Old engraved plate showing Rhazya stricta and Rauvolfia serpentina, a medicinal shrub of South Asia" loading="lazy" id="limitPlate">
+    <figcaption><em>Rauvolfia serpentina</em>, right</figcaption>
+  </figure>
+  <div class="letter">
+    <h2 data-r>What this cannot tell you</h2>
+    <div class="cols">
+      <div data-r><h3>Limits of the model</h3><ul>
+        <li>Climate suitability is not presence, abundance or supply.</li>
+        <li>Occurrence data reflect where people look, and many records are cultivated plants not flagged as such.</li>
+        <li>No soil, land use, harvest pressure, dispersal or biotic interactions are modelled.</li>
+        <li>"No checklist record" does not mean never assessed: national assessments may exist.</li>
+        <li>Compound data show what has been reported, and absence is not evidence of absence.</li>
+      </ul></div>
+      <div data-r style="--d:1"><h3>Responsible use</h3><ul>
+        <li>Threatened species have no public map, location list or share in any map layer.</li>
+        <li>Public layers stop at 0.5°, and no occurrence coordinates are published.</li>
+        <li>Formulas come from published literature only. No community-held knowledge is used.</li>
+        <li>Local and Indigenous knowledge holders should guide any field use, following the <a href="https://doi.org/10.5334/dsj-2020-043">CARE Principles</a>.</li>
+      </ul></div>
+      <div data-r><h3>Data problems we found and fixed</h3><ul>
+        <li>A GBIF status endpoint missed real assessments, so status was rebuilt from the IUCN archive.</li>
+        <li>A synonym wrongly made ashwagandha Critically Endangered. Synonyms now pass on status only for genus transfers.</li>
+        <li>An open-licence filter removed most records of threatened Himalayan plants.</li>
+        <li>A record cap returned clustered samples, so common species are now sampled by tile.</li>
+        <li>Missing future climate cells were silently passed to a model. They are now excluded.</li>
+      </ul></div>
+      <div data-r style="--d:1"><h3>How skill was tested</h3><div id="skill"></div></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="close" id="close">
+  <div class="row">
+    <div>
+      <p>Built by Team NothingButCode (Hari Hara Sudharsan J, Vendhan E T) for EthnoHack 2026, Track 3. <a href="https://github.com/hari-hara-sudharsan/BioDiver">Code on GitHub</a>.</p>
+      <p>Data: GBIF, WorldClim 2.1, IUCN Red List via GBIF, Wikidata/LOTUS. Derived data are for non-commercial research use. Base map © OpenStreetMap contributors. <span id="gen"></span></p>
+    </div>
+    <p>Plates, public domain via Wikimedia Commons: <a href="https://commons.wikimedia.org/wiki/File:Phyllanthus_emblica_Bra52.png"><em>Phyllanthus emblica</em></a>; <a href="https://commons.wikimedia.org/wiki/File:Piper_nigrum_Blanco1.11.jpg"><em>Piper nigrum</em></a> and <a href="https://commons.wikimedia.org/wiki/File:Zingiber_officinale_Blanco1.131.jpg"><em>Zingiber officinale</em></a> from Blanco, Flora de Filipinas; <a href="https://commons.wikimedia.org/wiki/File:Piper_sp_Blanco2.362-cropped.jpg"><em>Piper</em> sp.</a>, Blanco; <a href="https://commons.wikimedia.org/wiki/File:Indian_Medicinal_Plants_(Plate_602_Vol_4)_(page_11_crop).jpg">Indian Medicinal Plants, plate 602</a>.</p>
+  </div>
+  <div class="namewrap"><div class="name" id="name" aria-hidden="true"></div></div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const T={
+ en:{pick:"Select a block on the map",pickSub:"The guide lists priority plants with standard-grade models there. Threatened species are never listed.",title:"Priority plants near {c}",none:"No priority plants with standard-grade models in this block.",stay:"Held in most models",mixed:"Held under SSP2-4.5 only",risk:"Not held",note:"Climate suitability only. Before planting, check soil, water, local rules and legal sourcing, and speak to local growers or agriculture officers. Not medical advice.",draft:""},
+ hi:{pick:"मानचित्र पर एक खंड चुनें",pickSub:"यहाँ प्राथमिक पौधों की सूची दिखेगी। संकटग्रस्त प्रजातियाँ कभी सूचीबद्ध नहीं होतीं।",title:"{c} के पास प्राथमिक पौधे",none:"इस खंड में कोई प्राथमिक पौधा नहीं मिला।",stay:"अधिकांश मॉडलों में बना रहता है",mixed:"केवल SSP2-4.5 में बना रहता है",risk:"बना नहीं रहता",note:"यह केवल जलवायु उपयुक्तता है। रोपण से पहले मिट्टी, पानी, स्थानीय नियम और वैध स्रोत जाँचें, और स्थानीय किसानों या कृषि अधिकारियों से बात करें। यह चिकित्सा सलाह नहीं है।",draft:"मसौदा अनुवाद: मूल वक्ता द्वारा समीक्षा लंबित।"},
+ ta:{pick:"வரைபடத்தில் ஒரு பகுதியைத் தேர்ந்தெடுக்கவும்",pickSub:"அங்குள்ள முன்னுரிமைத் தாவரங்கள் இங்கே காட்டப்படும். அச்சுறுத்தலுக்குள்ளான இனங்கள் ஒருபோதும் பட்டியலிடப்படாது.",title:"{c} அருகிலுள்ள முன்னுரிமைத் தாவரங்கள்",none:"இந்தப் பகுதியில் முன்னுரிமைத் தாவரங்கள் இல்லை.",stay:"பெரும்பாலான மாதிரிகளில் நீடிக்கிறது",mixed:"SSP2-4.5 இல் மட்டும் நீடிக்கிறது",risk:"நீடிக்கவில்லை",note:"இது காலநிலைப் பொருத்தம் மட்டுமே. நடவு செய்வதற்கு முன் மண், நீர், உள்ளூர் விதிகள் மற்றும் சட்டபூர்வ மூலத்தைச் சரிபார்த்து, உள்ளூர் விவசாயிகள் அல்லது வேளாண் அலுவலர்களிடம் பேசவும். இது மருத்துவ ஆலோசனை அல்ல.",draft:"வரைவு மொழிபெயர்ப்பு: தாய்மொழியாளர் மதிப்பாய்வு நிலுவையில் உள்ளது."}
+};
+const still=matchMedia("(prefers-reduced-motion:reduce)").matches;
+if(still)document.documentElement.classList.add("still");
+const $=id=>document.getElementById(id);
+const pct=v=>v==null?"–":Math.round(v*100)+"%";
+const num=v=>v==null?"–":v.toLocaleString("en");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const GRADE={standard:"Standard",low:"Low confidence",no_skill:"No skill",data_gap:"Data gap"};
+const gradeTag=g=>`<span class="grade ${esc(g)}">${GRADE[g]||esc(g)}</span>`;
+let D,map,layerGroup,picked=null,pickedRect=null,layer="now";
+
+/* colour ramp shared by the mosaics and the map */
+const STOPS=[[34,78,64],[74,132,104],[150,190,150],[232,232,190],[244,200,92]];
+const LUT=Array.from({length:65},(_,i)=>{const t=i/64*(STOPS.length-1),k=Math.min(STOPS.length-2,Math.floor(t)),f=t-k;
+  return `rgb(${STOPS[k].map((v,j)=>Math.round(v+(STOPS[k+1][j]-v)*f))})`});
+const ramp=t=>LUT[Math.max(0,Math.min(64,Math.round(t*64)))];
+
+/* the mosaic: every square is a real exported block */
+class Mosaic{
+  constructor(canvas,blocks,opts={}){
+    this.c=canvas;this.x=canvas.getContext("2d");this.o=opts;this.t=0;this.intro=opts.intro?0:1;this.px=-1e4;this.py=-1e4;this.ppx=0;
+    this.max=Math.max(...blocks.map(b=>b[2]));
+    this.b=blocks.map((b,i)=>{const r=(Math.sin(i*12.9898)*43758.5453)%1;return{lat:b[0],lon:b[1],v:[b[2],b[3],b[4]],r:Math.abs(r)}});
+    this.visible=false;this.start=performance.now();
+    this.resize();
+    addEventListener("resize",()=>{this.resize();this.draw(performance.now())});
+    const host=opts.pointerHost||canvas;
+    host.addEventListener("pointermove",e=>{const q=canvas.getBoundingClientRect();this.px=e.clientX-q.left;this.py=e.clientY-q.top});
+    host.addEventListener("pointerleave",()=>{this.px=this.py=-1e4});
+    new IntersectionObserver(es=>{this.visible=es[0].isIntersecting;if(this.visible&&!still)this.loop();else this.draw(performance.now())}).observe(canvas);
+  }
+  resize(){
+    const dpr=Math.min(devicePixelRatio||1,2),w=this.c.clientWidth,h=this.c.clientHeight;
+    this.c.width=w*dpr;this.c.height=h*dpr;this.x.setTransform(dpr,0,0,dpr,0,0);this.w=w;this.h=h;
+    const padL=this.o.padLeft?this.o.padLeft(w):0,aw=w-padL,cell=Math.min(aw/82,h/68);
+    this.cell=cell;const ox=padL+(aw-80*cell)/2,oy=(h-66*cell)/2;
+    for(const q of this.b){q.x=ox+(q.lon-60)*2*cell;q.y=oy+(38-q.lat)*2*cell}
+  }
+  loop(){if(this.run)return;this.run=true;const f=n=>{if(!this.visible){this.run=false;return}this.draw(n);requestAnimationFrame(f)};requestAnimationFrame(f)}
+  draw(now){
+    const {x,cell}=this,time=now/1000,t=this.t,seg=Math.min(1,Math.floor(t)),f=t-seg;
+    x.clearRect(0,0,this.w,this.h);
+    if(this.o.intro&&!still)this.intro=Math.min(1,(now-this.start)/2200);else this.intro=1;
+    const R=cell*11;
+    for(const q of this.b){
+      const v=q.v[seg]+(q.v[seg+1]-q.v[seg])*f,base=q.v[0],lost=base?1-v/base:0;
+      const a=Math.max(0,Math.min(1,(this.intro*1.7-(q.lon-60)/80*.7-q.r*.25)/.55));
+      if(a<=0)continue;
+      const e=1-Math.pow(1-a,3);
+      let cx=q.x+cell,cy=q.y+cell+(1-e)*(q.r*90+30),s=cell*2*(.34+.62*Math.sqrt(v/this.max));
+      if(!still){s*=1+.05*Math.sin(time*1.1+q.lon*.22+q.lat*.31)}
+      const dx=cx-this.px,dy=cy-this.py,d=Math.hypot(dx,dy);
+      if(d<R){const p=1-d/R,k=p*p;cx+=dx/(d||1)*k*cell*2.4;cy+=dy/(d||1)*k*cell*2.4;s*=1+k*.9}
+      if(v<=0)s=cell*.3;
+      x.globalAlpha=e;
+      x.fillStyle=lost>.02&&t>0?this.mix(v/this.max,lost):ramp(v/this.max);
+      x.fillRect(cx-s/2,cy-s/2,s,s);
+      if(t>0&&lost>.05&&!still){
+        const ph=(time*.16+q.r)%1,rise=ph*cell*9;
+        x.globalAlpha=(1-ph)*Math.min(1,lost*1.5)*.9;x.fillStyle="#e2553a";
+        const g=cell*.62;x.fillRect(q.x+cell-g/2+Math.sin(ph*6+q.r*9)*cell*.7,q.y+cell-rise-g/2,g,g);
+      }
+    }
+    x.globalAlpha=1;
+  }
+  mix(t,lost){return lost>.6?"#e2553a":lost>.3?"#c98a4a":ramp(t)}
+}
+
+function facts(){
+  const s=D.summary;
+  const list=[[s.no_checklist_record/s.candidates,"p",`of ${num(s.candidates)} candidate plants have no record in the IUCN global checklist`],
+    [s.priority_no_record,"n",`of ${s.priority} priority plants have no checklist record`],
+    [s.grades.standard||0,"n",`standard-grade models out of ${num(s.modelled)} species modelled`],
+    [s.hindcast?s.hindcast.auc:s.auc.ens,"d",s.hindcast?`median AUC on places first recorded after 2010, across ${s.hindcast.species} species`:"median spatial AUC"]];
+  $("facts").innerHTML=list.map(([v,k,t],i)=>`<div class="fact" data-r style="--d:${i}"><b data-c="${v}" data-k="${k}">${fmt(v,k)}</b><span>${esc(t)}</span></div>`).join("");
+  $("preview").hidden=!s.preview;
+  $("gen").textContent=`Generated ${s.generated}.`;
+  $("gaps").textContent=s.priority_gaps.length?`${s.priority_gaps.length} priority plants could not be modelled because too few usable records exist: ${s.priority_gaps.join(", ")}. A gap is reported as a gap, not a safe result.`:"";
+  $("skill").innerHTML=`<ul><li>Median spatial block AUC: ensemble ${s.auc.ens}, GLM ${s.auc.glm}, Random Forest ${s.auc.rf}, BIOCLIM ${s.auc.bioclim}.</li><li>Random cross-validation scored ${s.auc.rf_random_cv}, which flatters models, so spatial blocks are what we report.</li><li>Species below 0.6 are graded no skill and their range change is not interpreted.</li></ul>`;
+}
+const fmt=(v,k)=>k==="p"?Math.round(v*100)+"%":k==="d"?Number(v).toFixed(3):num(Math.round(v));
+
+function barcode(){
+  const cols={};for(const b of D.blocks)cols[b[1]]=(cols[b[1]]||0)+b[2];
+  const keys=Object.keys(cols).map(Number).sort((a,b)=>a-b),m=Math.max(...Object.values(cols));
+  $("barcode").innerHTML=keys.map(k=>`<i style="height:100%;transform:scaleY(${(.08+.92*cols[k]/m).toFixed(3)})"></i>`).join("");
+}
+
+let drainStep=0,drainM,totals,stepHtml,stepTimer;
+function steps(){
+  totals=[2,3,4].map(i=>D.blocks.reduce((a,b)=>a+b[i],0));
+  const r=i=>totals[i]/totals[0];
+  const items=[["Today",num(totals[0]),"plant-and-place pairs: each one is a modelled plant finding suitable climate in a 55 km block."],
+    ["SSP2-4.5, 2041–2060",pct(r(1)),"of those pairs stay suitable in at least 4 of 5 climate models, on a middle emissions path."],
+    ["SSP5-8.5, 2041–2060",pct(r(2)),"stay suitable on a high emissions path. A pair counts as kept if a quarter of the block stays suitable, so this measure moves slowly; loss per plant, below, runs far higher. Red marks blocks losing most of their plants."]];
+  stepHtml=items.map(([h,n,t])=>`<h3>${h}</h3><strong>${n}</strong><p>${t}</p>`);
+  $("steps").innerHTML=still?stepHtml.map(h=>`<div class="step on">${h}</div>`).join(""):`<div class="step on" id="step">${stepHtml[0]}</div>`;
+}
+
+function formulas(){
+  const order=[...D.formula].sort((a,b)=>(b.footprint_retained_ssp585!=null)-(a.footprint_retained_ssp585!=null)||a.ingredients-b.ingredients);
+  const PL={Triphala:[["phyllanthus-ink.png","Engraving of Phyllanthus emblica, one of the three Triphala plants",900,1225]],
+    Trikatu:[["piper-nigrum-plate.jpg","Colour plate of black pepper, Piper nigrum, a Trikatu plant",1177,1389],["zingiber-plate.jpg","Colour plate of ginger, Zingiber officinale, a Trikatu plant",1127,1428]]};
+  $("formulas").innerHTML=order.map((f,ci)=>{
+    const ing=D.ingredients.filter(i=>i.formula===f.formula);
+    const rows=ing.map(i=>{
+      const usable=i.grade==="standard"||i.grade==="low",loss=i.loss_ssp585_median;
+      const src=i.status_x==="needs_source"?" · membership needs a source":i.status_x==="verified_group_only"?" · source plant varies by region":"";
+      const bar=usable&&loss!=null?`<span class="meter" style="--v:${loss}"><u></u></span>`:"";
+      return `<div class="ing"><span><i>${esc(i.species)}</i> · ${esc(i.traditional_name)}</span>${gradeTag(i.grade)}${bar}<small>${usable?`Loss ${pct(loss)} (${pct(i.loss_ssp585_min)}–${pct(i.loss_ssp585_max)})`:"No usable projection"} · Red List ${esc(i.iucn)}${src}</small></div>`}).join("");
+    const done=f.footprint_complete&&f.footprint_retained_ssp585!=null;
+    const keep=done?Math.round(f.footprint_retained_ssp585*100):0;
+    const lowNote=done&&ing.some(i=>i.grade==="low")?" One ingredient has a low-confidence model.":"";
+    const head=done?`<div class="big" data-c="${f.footprint_retained_ssp585}" data-k="p">${keep}%</div><p>of the shared footprint retained under SSP5-8.5, and ${pct(f.footprint_retained_ssp245)} under SSP2-4.5.${lowNote}</p>
+      <div class="foot" data-foot="${keep}" aria-hidden="true">${"<i></i>".repeat(100)}</div><p class="foot-key">100 squares are today's footprint</p>`
+      :`<div class="big">${f.usable_models} of ${f.ingredients}</div><p>ingredients have a usable model, so no shared footprint is computed: a partial one would mislead.${ing.filter(i=>i.status_x==="needs_source").length?` ${ing.filter(i=>i.status_x==="needs_source").length} ingredient links still need a published source.`:""}</p>`;
+    const plates=(PL[f.formula]||[]).map(p=>`<img src="assets/${p[0]}" width="${p[2]}" height="${p[3]}" alt="${esc(p[1])}" loading="lazy" data-wipe>`).join("");
+    return `<article class="card" data-card style="--n:${ci}"><div class="card-l"><h3>${esc(f.formula)}</h3>${head}${plates?`<div class="plates">${plates}</div>`:""}</div><div class="card-r"><div class="${ing.length>6?"many":""}">${rows}</div></div></article>`}).join("");
+}
+
+/* ledger */
+const COLS=[["species","Species"],["family","Family"],["iucn","Red List"],["grade","Grade"],["auc_ens","Spatial AUC",1],["loss_ssp585_median","Loss, SSP5-8.5",1],["novel_ssp585_median","Novel climate",1],["compounds","Compounds",1]];
+let sortKey="species",sortDir=1;
+function heads(){
+  $("heads").innerHTML=COLS.map(([k,l,n])=>`<th class="${n?"num":""}" scope="col" ${k===sortKey?`aria-sort="${sortDir>0?"ascending":"descending"}"`:""}><button type="button" data-k="${k}">${l}</button></th>`).join("");
+}
+function table(){
+  const q=$("q").value.toLowerCase(),g=$("grade").value,p=$("prio").checked;
+  const usable=s=>s.grade==="standard"||s.grade==="low";
+  let list=D.species.filter(s=>(!p||s.priority)&&(!g||s.grade===g)&&(!q||(s.species+" "+s.family).toLowerCase().includes(q)));
+  list=list.slice().sort((a,b)=>{const x=a[sortKey],y=b[sortKey];if(x==null)return 1;if(y==null)return -1;return (x<y?-1:x>y?1:0)*sortDir});
+  $("count").textContent=`${list.length} species`;
+  $("rows").innerHTML=list.slice(0,400).map(s=>{const u=usable(s);
+    return `<tr><td><i>${esc(s.species)}</i>${s.sensitive?' <span class="withheld">· map withheld</span>':""}</td><td>${esc(s.family)}</td><td>${s.iucn==="NE"?"No record":esc(s.iucn)}${s.iucn_year?` (${s.iucn_year})`:""}</td><td>${gradeTag(s.grade)}</td><td class="num">${s.auc_ens??"–"}</td><td class="num">${u?`${pct(s.loss_ssp585_median)}<span class="bar-in"><u style="width:${Math.round((s.loss_ssp585_median||0)*100)}%"></u></span>`:"–"}</td><td class="num">${u?pct(s.novel_ssp585_median):"–"}</td><td class="num">${s.compounds?num(s.compounds):"–"}</td></tr>`}).join("");
+}
+
+function evidence(){
+  const s=D.summary,h=s.hindcast,c=D.chemistry,items=[];
+  items.push([s.auc.ens,"d",`median AUC with spatial blocks held out. Random splits scored ${s.auc.rf_random_cv}, which is why we do not report them.`]);
+  if(h){items.push([h.auc,"d",`median AUC predicting places first recorded after 2010 from earlier records alone. A distance-only baseline scored ${h.distance}.`]);
+    items.push([h.beats_distance,"n",`of ${h.species} species beat that distance baseline, and ${h.above_chance} were better than chance.`])}
+  if(c)items.push([c.exclusive_to_vulnerable,"n",`of ${num(c.compounds)} reported compounds appear only in vulnerable plants. Only ${c.exclusive_reported_by_two_or_more} of those were reported from two or more species, so most reflect thin reporting, not proven uniqueness.`]);
+  $("tests").innerHTML=items.map(([v,k,t],i)=>`<li data-r style="--d:${i}"><b data-c="${v}" data-k="${k}">${fmt(v,k)}</b><span>${esc(t)}</span></li>`).join("");
+  const v=D.triage_validation,cf=D.triage_conformal[0],best=Math.max(...v.map(r=>r.pr_auc));
+  const name={range_only:"Range only (baseline)",records:"Occurrence records",records_plus_climate:"Records and climate"};
+  const rows=v.map(r=>`<tr class="${r.pr_auc===best?"best":""}"><td>${esc(name[r.features]||r.features)}, ${esc(r.model)}</td><td class="num">${r.pr_auc}</td><td class="num">${r.roc_auc}</td><td class="num">${r.lift}×</td></tr>`).join("");
+  $("triage").innerHTML=`<p data-r>Triage suggests a review order. Only IUCN assessors can assign a category. Whole plant families were held out in testing, and predictions are released only if the model doubles the base rate and beats a range-only baseline.</p>
+  <div class="board" data-ui data-r><table><thead><tr><th>Features and model</th><th class="num">PR-AUC</th><th class="num">ROC-AUC</th><th class="num">Lift</th></tr></thead><tbody>${rows}</tbody></table></div>
+  ${cf?`<p data-r>Conformal coverage on held-out families was ${pct(cf.coverage_threatened)} for threatened and ${pct(cf.coverage_not_threatened)} for not threatened, against a ${pct(cf.target)} target. ${pct(cf.share_uncertain)} of plants honestly come back uncertain.</p>`:""}
+  ${D.triage_released?"":"<p data-r>The release gate failed, so no species-level predictions are published.</p>"}`;
+}
+
+/* map */
+const val=(b,l)=>l==="now"?b[2]:l==="k245"?b[3]:l==="k585"?b[4]:(b[2]?b[4]/b[2]:0);
+function legend(){
+  const max=layer==="share"?1:Math.max(...D.blocks.map(b=>b[2]));
+  $("legend").innerHTML=`<span>${layer==="share"?"0%":"0"}</span>${[0,.25,.5,.75,1].map(t=>`<i style="background:${ramp(t)}"></i>`).join("")}<span>${layer==="share"?"100%":max+" plants"}</span>`;
+}
+function drawLayer(){
+  const max=layer==="share"?1:Math.max(...D.blocks.map(b=>b[2]));
+  layerGroup.clearLayers();
+  for(const b of D.blocks){
+    const r=L.rectangle([[b[0]-.5,b[1]],[b[0],b[1]+.5]],{renderer:map._canvasR,stroke:false,fillColor:ramp(val(b,layer)/max),fillOpacity:.86});
+    r.on("click",()=>select(b,r));
+    r.on("mouseover",()=>r.setStyle({fillOpacity:1}));r.on("mouseout",()=>r.setStyle({fillOpacity:.86}));
+    r.addTo(layerGroup);
+  }
+  legend();
+}
+function select(b){
+  picked=b;guide();
+  if(pickedRect)pickedRect.remove();
+  pickedRect=L.rectangle([[b[0]-.5,b[1]],[b[0],b[1]+.5]],{renderer:map._canvasR,color:"#e3a72f",weight:3,fill:false,interactive:false}).addTo(map);
+}
+function guide(){
+  const t=T[$("lang").value],g=$("guide");
+  if(!picked){g.innerHTML=`<h3>${t.pick}</h3><p>${t.pickSub}</p>`+(t.draft?`<p class="note">${t.draft}</p>`:"");return}
+  const key=`${picked[0]},${picked[1]}`,list=(D.guide[key]||[]).slice().sort((a,b)=>(b[2]+b[1])-(a[2]+a[1]));
+  const items=list.map(([i,a,c],n)=>{const k=c?["good",t.stay]:a?["warn",t.mixed]:["risk",t.risk];
+    return `<li style="--i:${n}"><i>${esc(D.guide_species[i])}</i><span class="${k[0]}">${k[1]}</span></li>`}).join("");
+  g.innerHTML=`<h3>${t.title.replace("{c}",`${picked[0]-.25}°N, ${picked[1]+.25}°E`)}</h3>`+(list.length?`<ul class="glist">${items}</ul>`:`<p>${t.none}</p>`)+`<p class="note">${t.note}</p>`+(t.draft?`<p class="note">${t.draft}</p>`:"");
+}
+function nearest(lat,lon){let best=null,bd=1e9;for(const b of D.blocks){const d=(b[0]-.25-lat)**2+(b[1]+.25-lon)**2;if(d<bd){bd=d;best=b}}return best}
+function initMap(){
+  map=L.map("map",{preferCanvas:true,scrollWheelZoom:false,minZoom:3,maxZoom:9}).fitBounds([[5,60],[38,100]]);
+  map._canvasR=L.canvas({padding:.3});
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:9,attribution:"© OpenStreetMap contributors"}).addTo(map);
+  layerGroup=L.layerGroup().addTo(map);drawLayer();
+  map.on("click",e=>{const b=nearest(e.latlng.lat,e.latlng.lng);if(Math.abs(b[0]-.25-e.latlng.lat)<.5&&Math.abs(b[1]+.25-e.latlng.lng)<.5)select(b)});
+  select(nearest(11,76.5));
+}
+function setPressed(group,btn){group.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===btn))}
+
+/* motion */
+function count(el){
+  const v=+el.dataset.c,k=el.dataset.k;if(still||!isFinite(v))return;
+  const t0=performance.now(),dur=1500;
+  const f=n=>{const p=Math.min(1,(n-t0)/dur),e=1-Math.pow(1-p,4);el.textContent=fmt(v*e,k);if(p<1)requestAnimationFrame(f);else el.textContent=fmt(v,k)};
+  requestAnimationFrame(f);
+}
+function observe(){
+  const io=new IntersectionObserver(es=>{for(const e of es){if(!e.isIntersecting)continue;const n=e.target;n.classList.add("in");io.unobserve(n);
+    n.querySelectorAll?.("[data-c]").forEach(count);n.querySelectorAll("[data-wipe]").forEach((w,i)=>{w.style.transitionDelay=i*180+"ms";w.classList.add("in")});if(n.dataset.c)count(n);
+    if(n.dataset.foot!=null){const keep=+n.dataset.foot;[...n.children].forEach((c,i)=>{if(i>=keep)setTimeout(()=>c.classList.add("lost"),still?0:500+(i-keep)*14)})}
+  }},{threshold:.18,rootMargin:"0px 0px -6% 0px"});
+  document.querySelectorAll("[data-r],[data-card],[data-foot],.big[data-c],#name,.plates").forEach(n=>io.observe(n));
+}
+function scroller(){
+  const bar=$("bar"),drain=$("drain"),ticks=[...document.querySelectorAll(".ticks b")],cards=[...document.querySelectorAll("[data-card]")],plate=$("limitPlate"),hero=document.querySelector(".plate-hero");
+  const links=[...document.querySelectorAll(".bar nav a")].map(a=>[a,document.querySelector(a.getAttribute("href"))]);
+  let last=0,tick=false;
+  const run=()=>{tick=false;const y=scrollY,vh=innerHeight;
+    bar.classList.toggle("away",y>last&&y>vh*.6);last=y;
+    let cur=null;for(const [a,s] of links){const r=s.getBoundingClientRect();if(r.top<vh*.4&&r.bottom>vh*.4)cur=a}
+    links.forEach(([a])=>a===cur?a.setAttribute("aria-current","true"):a.removeAttribute("aria-current"));
+    if(still)return;
+    const r=drain.getBoundingClientRect(),p=Math.max(0,Math.min(1,-r.top/(r.height-vh)));
+    drainM.t=Math.max(0,Math.min(2,(p-.08)/.8*2));
+    const s=p<.3?0:p<.68?1:2;
+    if(s!==drainStep){drainStep=s;const e=$("step");e.classList.remove("on");clearTimeout(stepTimer);stepTimer=setTimeout(()=>{e.innerHTML=stepHtml[drainStep];e.classList.add("on")},300)}
+    ticks.forEach((b,i)=>b.style.transform=`scaleX(${Math.max(0,Math.min(1,p*3-i))})`);
+    if(hero)hero.style.transform=`translateY(${y*.06}px) rotate(${y*.004}deg)`;
+    cards.forEach((c,i)=>{const n=cards[i+1];if(!n||getComputedStyle(c).position!=="sticky"){c.style.setProperty("--k",0);return}
+      const q=n.getBoundingClientRect(),k=Math.max(0,Math.min(1,1-(q.top-120)/(vh*.6)));c.style.setProperty("--k",k.toFixed(3))});
+    if(plate){const q=plate.parentElement.getBoundingClientRect();if(q.bottom>0&&q.top<vh)plate.style.transform=`scale(1.14) translateY(${(q.top/vh-.5)*-5}%)`}
+  };
+  addEventListener("scroll",()=>{if(!tick){tick=true;requestAnimationFrame(run)}},{passive:true});
+  addEventListener("resize",run);run();
+}
+
+fetch("data/app.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{
+  D=d;
+  document.querySelector("#name").innerHTML=[..."BioDiver"].map((c,i)=>`<span style="--i:${i}">${c}</span>`).join("");
+  facts();barcode();steps();formulas();heads();table();evidence();guide();
+  new Mosaic($("heroMap"),D.blocks,{intro:true,pointerHost:$("heroMap").parentElement});
+  drainM=new Mosaic($("drainMap"),D.blocks,{padLeft:w=>w>860?Math.min(w*.3,440):0,pointerHost:$("drainMap").parentElement});
+  if(still){drainM.t=2;drainM.draw(performance.now());0}
+  initMap();
+  $("layers").onclick=e=>{const b=e.target.closest("button");if(!b)return;layer=b.dataset.l;setPressed($("layers"),b);const m=$("map");m.classList.add("swap");setTimeout(()=>{drawLayer();m.classList.remove("swap")},still?0:260)};
+  $("jumps").onclick=e=>{const b=e.target.closest("button");if(!b)return;setPressed($("jumps"),b);const [la,lo]=b.dataset.p.split(",").map(Number),k=nearest(la,lo);select(k);still?map.setView([la,lo],6):map.flyTo([la,lo],6,{duration:1.4})};
+  $("lang").onchange=guide;
+  ["q","grade","prio"].forEach(i=>$(i).oninput=table);
+  $("heads").onclick=e=>{const b=e.target.closest("button");if(!b)return;const k=b.dataset.k;if(k===sortKey)sortDir=-sortDir;else{sortKey=k;sortDir=COLS.find(c=>c[0]===k)[2]?-1:1}heads();table()};
+  observe();scroller();
+}).catch(e=>{console.error(e);$("facts").innerHTML=`<p>Data could not be loaded: ${esc(e.message)}</p>`;document.querySelectorAll("[data-r]").forEach(n=>n.classList.add("in"))});
+</script>
+</body>
+</html>

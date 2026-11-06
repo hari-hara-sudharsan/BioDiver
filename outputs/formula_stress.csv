@@ -1,0 +1,4 @@
+formula,ingredients,fully_sourced,usable_models,standard_models,data_gaps,no_skill,threatened,no_checklist_record,weakest_link,weakest_loss_ssp585,weakest_grade,footprint_complete,footprint_cells_now,footprint_retained_ssp245,footprint_retained_ssp585
+Dashamoola,10,False,9,5,1,0,0,3,Stereospermum colais,0.5588273958196398,low,False,,,
+Trikatu,3,True,1,1,0,2,0,2,Piper nigrum,0.2675555555555555,standard,False,,,
+Triphala,3,True,3,2,0,0,0,0,Terminalia bellirica,0.3820630547903275,standard,True,10469.0,0.5409303658420097,0.44779826153405294

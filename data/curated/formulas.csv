@@ -1,0 +1,17 @@
+formula,species,traditional_name,part_note,status,source
+Triphala,Phyllanthus emblica,Amalaki,fruit,verified,https://doi.org/10.1089/acm.2017.0083
+Triphala,Terminalia bellirica,Bibhitaki,fruit,verified,https://doi.org/10.1089/acm.2017.0083
+Triphala,Terminalia chebula,Haritaki,fruit,verified,https://doi.org/10.1089/acm.2017.0083
+Trikatu,Piper longum,Pippali,fruit,verified,https://doi.org/10.1016/j.jep.2014.03.023
+Trikatu,Piper nigrum,Maricha,fruit,verified,https://doi.org/10.1016/j.jep.2014.03.023
+Trikatu,Zingiber officinale,Shunthi,rhizome,verified,https://doi.org/10.1016/j.jep.2014.03.023
+Dashamoola,Oroxylum indicum,Shyonaka,root bark,verified,https://doi.org/10.4103/0975-9476.104434
+Dashamoola,Solanum virginianum,Kantakari,root,verified,https://doi.org/10.1007/s12010-025-05335-9
+Dashamoola,Desmodium gangeticum,Shalaparni,root,verified,https://doi.org/10.1080/14786419.2025.2455458
+Dashamoola,Premna serratifolia,Agnimantha,root; source plant varies by region,verified_group_only,https://pubmed.ncbi.nlm.nih.gov/23284207/
+Dashamoola,Aegle marmelos,Bilva,root,needs_source,
+Dashamoola,Stereospermum colais,Patala,root,needs_source,
+Dashamoola,Gmelina arborea,Gambhari,root,needs_source,
+Dashamoola,Uraria picta,Prishnaparni,root,needs_source,
+Dashamoola,Solanum violaceum,Brihati,root,needs_source,
+Dashamoola,Tribulus terrestris,Gokshura,root,needs_source,
